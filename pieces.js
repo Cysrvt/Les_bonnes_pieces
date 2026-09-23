@@ -1,6 +1,20 @@
-// Récupération des pièces depuis le fichier JSON
-const reponse = await fetch("pieces-autos.json");
-const pieces = await reponse.json();
+import { ajoutListenersAvis, ajoutListenerEnvoyerAvis, afficherAvis } from "./avis.js";
+
+//Récupération des pièces eventuellement stockées dans le localStorage
+let pieces = window.localStorage.getItem('pieces');
+if (pieces === null) {
+    // Récupération des pièces depuis l'API
+    const reponse = await fetch('http://localhost:8081/pieces/');
+    pieces = await reponse.json();
+    // Transformation des pièces en JSON
+    const valeurPieces = JSON.stringify(pieces);
+    // Stockage des informations dans le localStorage
+    window.localStorage.setItem("pieces", valeurPieces);
+} else {
+    pieces = JSON.parse(pieces);
+}
+
+ajoutListenerEnvoyerAvis()
 
 // Fonction qui génère toute la page web
 function genererPieces(pieces) {
@@ -8,20 +22,30 @@ function genererPieces(pieces) {
     for (let i = 0; i < pieces.length; i++) {
 
         const article = pieces[i];
+        //Balise Article
         const piecesElement = document.createElement("article");
+        // img
         const imageElement = document.createElement("img");
         imageElement.src = article.image;
+        // titre
         const nomElement = document.createElement("h2");
         nomElement.innerText = article.nom;
+        //p prix
         const prixElement = document.createElement("p");
         prixElement.innerText = `Prix: ${article.prix} € (${article.prix < 35 ? "€" : "€€€"})`;
+        //p catégorie
         const categorieElement = document.createElement("p");
         categorieElement.innerText = article.categorie ?? "(aucune catégorie)";
+        //p description
         const descriptionElement = document.createElement("p");
         descriptionElement.innerText = article.description ?? "Pas de description pour le moment.";
+        //p disponibilité
         const disponibiliteElement = document.createElement("p");
         disponibiliteElement.innerText = article.disponibilite ? "En stock" : "Rupture de Stock";
-
+        //Bouton Avis 
+        const avisBouton = document.createElement("button");
+        avisBouton.dataset.id = article.id;
+        avisBouton.textContent = "Afficher les avis";
         // rattaché les éléments au DOM :
         const sectionFiches = document.querySelector(".fiches");
         sectionFiches.appendChild(piecesElement);
@@ -31,11 +55,23 @@ function genererPieces(pieces) {
         piecesElement.appendChild(categorieElement);
         piecesElement.appendChild(descriptionElement);
         piecesElement.appendChild(disponibiliteElement);
-
+        piecesElement.appendChild(avisBouton)
     }
+    ajoutListenersAvis()
 }
 genererPieces(pieces)
 
+
+for (let i = 0; i < pieces.length; i++) {
+    const id = pieces[i].id;
+    const avisJSON = window.localStorage.getItem(`avis-piece-${id}`);
+    const avis = JSON.parse(avisJSON);
+
+    if (avis !== null) {
+        const pieceElement = document.querySelector(`article[data-id="${id}"]`);
+        afficherAvis(pieceElement, avis)
+    }
+}
 
 // Gestion des boutons
 //Bouton Tri prix croissant
@@ -127,3 +163,19 @@ for (let i = 0; i < piecesDisponible.length; i++) {
 const disponibles = document.querySelector(".disponibles")
 disponibles.appendChild(disponibleElement)
 
+
+//Creer le filtre du bouton range
+const inputPrixFiltrer = document.querySelector("#inputRange")
+inputPrixFiltrer.addEventListener("input", () => {
+    const piecesFiltrees = pieces.filter(function (piece) {
+        return piece.prix <= inputPrixFiltrer.value;
+    })
+    document.querySelector(".fiches").innerHTML = ""
+    genererPieces(piecesFiltrees)
+});
+
+// Ajout du listener pour mettre à jour des données du localStorage
+const boutonMettreAJour = document.querySelector(".btn-maj");
+boutonMettreAJour.addEventListener("click", function () {
+    window.localStorage.removeItem("pieces");
+});
